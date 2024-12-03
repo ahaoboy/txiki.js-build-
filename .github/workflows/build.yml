@@ -86,7 +86,6 @@ jobs:
         run: |
           git clone https://github.com/saghul/txiki.js --depth=1 --shallow-submodules
           cd txiki.js
-          sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
           git submodule update --init
           cmake -S . -B build
           cmake --build build
@@ -107,7 +106,6 @@ jobs:
 
           git clone https://github.com/saghul/txiki.js --depth=1 --shallow-submodules
           cd txiki.js
-          sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
           git submodule update --init
           cmake -S . -B build
           cmake --build build
