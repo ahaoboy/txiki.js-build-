@@ -1,0 +1,144 @@
+name: build
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - "main"
+  pull_request:
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -CeEuo pipefail {0}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # - target: x86_64-apple-darwin
+          #   os: macos-13
+          # - target: aarch64-apple-darwin
+          #   os: macos-latest
+          # - target: x86_64-pc-windows-msvc
+          #   os: windows-latest
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+          # - target: arm64ec-pc-windows-msvc
+          #   os: windows-latest
+          # - target: aarch64-unknown-linux-musl
+          #   os: ubuntu-latest
+          # - target: aarch64-unknown-linux-gnu
+          #   os: ubuntu-latest
+          # - target: x86_64-unknown-linux-musl
+          #   os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    name: build-${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: install macos
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install cmake autoconf automake libtool texinfo
+
+      - name: install ubuntu
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
+
+      - name: install windows
+        uses: msys2/setup-msys2@v2
+        if: matrix.os == 'windows-latest'
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-perl
+            mingw-w64-x86_64-python3
+            zip
+            unzip
+            curl
+            wget
+            git
+            make
+          pacboy: >-
+            curl-winssl:p
+            autotools:p
+            toolchain:p
+            cmake:p
+            ninja:p
+            libffi:p
+
+      - name: build-${{ matrix.target }}
+        if: matrix.os != 'windows-latest'
+        shell: "bash"
+        run: |
+          git clone https://github.com/saghul/txiki.js --depth=1 --shallow-submodules
+          cd txiki.js
+          sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
+          git submodule update --init
+          cmake -S . -B build
+          cmake --build build
+
+          mkdir ../dist
+
+          cp -r ./build/*tjs* ../dist
+
+          cd ..
+          tar -czf ./tjs-${{ matrix.target }}.tar.gz -C ./dist .
+          ls -l ./tjs-${{ matrix.target }}.tar.gz
+
+      - name: build-windows
+        if: matrix.os == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-make mingw-w64-x86_64-curl libcurl openssl-devel libcurl-devel autoconf texinfo mingw-w64-x86_64-libtool --noconfirm
+
+          git clone https://github.com/saghul/txiki.js --depth=1 --shallow-submodules
+          cd txiki.js
+          sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
+          git submodule update --init
+          cmake -S . -B build
+          cmake --build build
+
+          mkdir ../dist
+
+          cp -r ./build/*tjs* ../dist
+
+          cd ..
+          tar -czf ./tjs-${{ matrix.target }}.tar.gz -C ./dist .
+          ls -l ./tjs-${{ matrix.target }}.tar.gz
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: tjs-${{ matrix.target }}
+          path: ./tjs-${{ matrix.target }}.tar.gz
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: tjs
+          pattern: tjs*
+          merge-multiple: true
+
+      - name: release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "tjs/*.tar.gz"
