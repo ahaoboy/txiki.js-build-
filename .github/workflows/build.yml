@@ -3,6 +3,9 @@ name: build
 permissions:
   contents: write
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 on:
   push:
     tags:
@@ -148,8 +151,9 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
     runs-on: ${{ matrix.os }}
-    name: build-${{ matrix.target }}
+    name: test-build-${{ matrix.target }}
     steps:
+      - uses: actions/checkout@v4
       - name: install easy-install
         uses: ahaoboy/easy-setup@v1
         with:
