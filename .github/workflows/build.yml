@@ -134,7 +134,7 @@ jobs:
         with:
           artifacts: "tjs/*.tar.gz"
   release-test:
-    needs: build
+    needs: release
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
