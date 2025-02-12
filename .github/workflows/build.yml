@@ -20,22 +20,12 @@ jobs:
     strategy:
       matrix:
         include:
-          # - target: x86_64-apple-darwin
-          #   os: macos-13
-          # - target: aarch64-apple-darwin
-          #   os: macos-latest
-          # - target: x86_64-pc-windows-msvc
-          #   os: windows-latest
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-14
           - target: x86_64-pc-windows-gnu
             os: windows-latest
-          # - target: arm64ec-pc-windows-msvc
-          #   os: windows-latest
-          # - target: aarch64-unknown-linux-musl
-          #   os: ubuntu-latest
-          # - target: aarch64-unknown-linux-gnu
-          #   os: ubuntu-latest
-          # - target: x86_64-unknown-linux-musl
-          #   os: ubuntu-latest
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
     runs-on: ${{ matrix.os }}
@@ -45,13 +35,15 @@ jobs:
       - name: install macos
         if: startsWith(matrix.os, 'macos')
         run: |
+          # sudo mkdir -p /usr/local
+          # sudo brew update
+          # sudo brew upgrade
           brew install cmake autoconf automake libtool texinfo
 
       - name: install ubuntu
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt install libcurl4-openssl-dev build-essential cmake autoconf texinfo libtool libltdl-dev -y
-
       - name: install windows
         uses: msys2/setup-msys2@v2
         if: matrix.os == 'windows-latest'
@@ -81,6 +73,7 @@ jobs:
             libffi:p
 
       - name: build-${{ matrix.target }}
+        # if: startsWith(matrix.os, 'ubuntu')
         if: matrix.os != 'windows-latest'
         shell: "bash"
         run: |
@@ -140,3 +133,31 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "tjs/*.tar.gz"
+  release-test:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    name: build-${{ matrix.target }}
+    steps:
+      - name: install easy-install
+        uses: ahaoboy/easy-setup@v1
+        with:
+          url: https://github.com/ahaoboy/txiki.js-build
+          version: latest
+          name: tjs
+      - name: test
+        run: |
+          which tjs
+          echo "console.log(1+1)" > a.js
+          tjs run a.js
